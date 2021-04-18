@@ -60,6 +60,7 @@ class FaceEmbeddingJob(Job):
             repartition(int(len(image_paths) ** 0.5), "image_path").\
             rdd.\
             flatMap(lambda x: extract_face_emb(x.image_path)). \
+            map(lambda x: ';'.join(map(str, x))).\
             saveAsTextFile(self.output_path)
 
         self.logger.info("Sample job finished!")

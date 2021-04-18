@@ -1,2 +1,4 @@
 pyspark
 numpy
+face_recognition
+pandas

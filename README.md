@@ -12,15 +12,15 @@ pip install -r unit-requirements.txt
 
 ## Install project package in a developer mode
 
+System installs
+
+```
+brew install jpeg
+```
+
 ```bash
+pip install -r requirements.txt
 pip install -e .
-```
-
-## Testing
-
-For local unit testing, please use `pytest`:
-```
-pytest tests/unit --cov
 ```
 
 For an integration test on interactive cluster, use the following command:
@@ -34,28 +34,6 @@ dbx deploy --job=face-embedding-computer-sample-integration-test --files-only
 dbx launch --job=face-embedding-computer-sample-integration-test --as-run-submit --trace
 ```
 
-## Interactive execution and development
-
-1. `dbx` expects that cluster for interactive execution supports `%pip` and `%conda` magic [commands](https://docs.databricks.com/libraries/notebooks-python-libraries.html).
-2. Please configure your job in `conf/deployment.json` file. 
-2. To execute the code interactively, provide either `--cluster-id` or `--cluster-name`.
-```bash
-dbx execute \
-    --cluster-name="<some-cluster-name>" \
-    --job=job-name
-```
-
-Multiple users also can use the same cluster for development. Libraries will be isolated per each execution context.
-
-## Preparing deployment file
-
-Next step would be to configure your deployment objects. To make this process easy and flexible, we're using JSON for configuration.
-
-By default, deployment configuration is stored in `conf/deployment.json`.
-
-## Deployment for Run Submit API
-
-To deploy only the files and not to override the job definitions, do the following:
 
 ```bash
 dbx deploy --files-only
@@ -79,22 +57,4 @@ dbx deploy
 To launch the file-based deployment:
 ```
 dbx launch --job=<job-name>
-```
-
-This type of deployment shall be mainly used from the CI pipeline in automated way during new release.
-
-
-## CICD pipeline settings
-
-Please set the following secrets or environment variables for your CI provider:
-- `DATABRICKS_HOST`
-- `DATABRICKS_TOKEN`
-
-## Testing and releasing via CI pipeline
-
-- To trigger the CI pipeline, simply push your code to the repository. If CI provider is correctly set, it shall trigger the general testing pipeline
-- To trigger the release pipeline, get the current version from the `face_embedding_computer/__init__.py` file and tag the current code version:
-```
-git tag -a v<your-project-version> -m "Release tag for version <your-project-version>"
-git push origin --tags
 ```
