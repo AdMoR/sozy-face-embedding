@@ -1,7 +1,9 @@
 import os
 import numpy as np
 import json
-import SPTAG
+import itertools
+from functools import reduce
+from annoy import AnnoyIndex
 
 
 def load_vectors_and_metadata(doc_path):
@@ -13,7 +15,7 @@ def load_vectors_and_metadata(doc_path):
         return ";".join(fields[0:2]), fields[2]
 
     metadata, embeddings = zip(*map(extract_fn, lines))
-    return "\n".join(metadata), \
+    return list(metadata), \
            np.concatenate(list(map(lambda x: np.array([json.loads(x)]), embeddings)), axis=0)
 
 def prepare_data(data_path):
@@ -22,19 +24,20 @@ def prepare_data(data_path):
     So we get a directory with part files
     """
     file_names = [os.path.join(data_path, f) for f in os.listdir(data_path)
-                  if "part" in f]
+                  if f.startswith("part")]
     metadata_array, embeddings_array = list(zip(*map(load_vectors_and_metadata, file_names)))
-    return "\n".join(metadata_array), np.concatenate(embeddings_array, axis=0)
+    return list(itertools.chain.from_iterable(metadata_array)), np.concatenate(embeddings_array, axis=0)
 
 
-doc_path = "./"
+doc_path = "./export_dir/face_embedding_dump"
 meta, vec = prepare_data(doc_path)
-index = SPTAG.AnnIndex('BKT', 'Float', 128)
-index.SetBuildParam("NumberOfThreads", '4')
-index.SetBuildParam("DistCalcMethod", 'Cosine')
+print(len(meta), vec.shape)
 
+f = vec.shape[1]
+t = AnnoyIndex(f, 'angular')  # Length of item vector that will be indexed
+for i in range(vec.shape[0]):
+    t.add_item(i, vec[i])
 
-if index.BuildWithMetaData(vec, meta, vec.shape[0], False):
-    index.Save("sptag_index") # Save the index to the disk
-
-os.listdir('sptag_index')
+t.build(30) # 30 trees
+t.save('test.ann')
+json.dump(meta, open("metadata.json", "w"))
