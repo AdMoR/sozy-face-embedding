@@ -40,7 +40,7 @@ class FaceEmbeddingJob(Job):
 
         parsed_data = list(map(lambda x: {k: v for v, k in zip(x.strip().split(";"), ["title", "image_path"])},
                                lines))
-        return create_spark_df_from_data(self.spark, parsed_data), len(parsed_data)
+        return create_spark_df_from_data(self.spark, parsed_data), int(len(parsed_data) ** 0.33)
 
     def launch(self):
         self.logger.info("Launching databricks_jobs job")

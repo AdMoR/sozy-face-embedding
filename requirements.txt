@@ -2,3 +2,9 @@ pyspark
 numpy
 face_recognition
 pandas
+annoy
+fastapi[all]
+uvicorn[standard]
+jinja2
+aiofiles
+python-multipart

@@ -58,3 +58,58 @@ To launch the file-based deployment:
 ```
 dbx launch --job=<job-name>
 ```
+
+
+# CoZy
+
+## Build the docker 
+
+```
+cd SPTAG
+docker build . -t sptag
+```
+
+
+## Compute the embedding based on an image directory
+
+```
+cd face-embedding-computer
+python3 databricks_jobs/jobs/face_embedding_computer/entrypoint.py --path /Users/amorvan/Downloads/img_align_celeba
+```
+
+# Launching all the steps
+
+## Build index 
+
+```
+cd ..
+docker run -it --rm -p 18889:18889 --volume=$PWD:/app --ipc=host --user="amor" sptag export PYTHONPATH=$PYTHONPATH:/app/SPTAG/Release && python3 search_service/build_index.py
+```
+
+## Serve the results 
+
+```
+Config file 
+
+[Service]
+ListenAddr=0.0.0.0
+ListenPort=18889
+ThreadNumber=2
+SocketThreadNumber=2
+
+[QueryConfig]
+DefaultMaxResultNumber=10
+DefaultSeparator=|
+
+[Index]
+List=MyIndex
+
+[Index_MyIndex]
+IndexFolder=face-embedding-computer/sptag_index
+
+cd /app && ./SPTAG/Release/server -m socket -c config.ini
+```
+
+## Get the results
+
+
