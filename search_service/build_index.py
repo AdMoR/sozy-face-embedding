@@ -14,6 +14,7 @@ def load_vectors_and_metadata(doc_path):
         fields = x.split(";")
         return ";".join(fields[0:2]), fields[2]
 
+    print(lines[:10])
     metadata, embeddings = zip(*map(extract_fn, lines))
     return list(metadata), \
            np.concatenate(list(map(lambda x: np.array([json.loads(x)]), embeddings)), axis=0)

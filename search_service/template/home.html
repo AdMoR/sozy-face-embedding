@@ -1,0 +1,21 @@
+<html>
+<head>
+    <title>Item Details</title>
+    <link href="{{ url_for('static', path='/styles.css') }}" rel="stylesheet">
+</head>
+<body>
+    <h1>Upload your photo</h1>
+    <form action="/search/" enctype="multipart/form-data" method="post">
+        <input name="files" type="file" multiple>
+        <input type="submit">
+    </form>
+
+    <div>
+
+    {% if corresponding_matches %}
+        <img src="{{corresponding_matches[0]}}">
+    {%endif%}
+    </div>
+</body>
+</html>
+
