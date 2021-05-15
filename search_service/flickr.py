@@ -1,5 +1,6 @@
 import flickr_api
 import os
+import argparse
 
 
 class FlickrCrawler():
@@ -28,11 +29,17 @@ class FlickrCrawler():
             if i>=max_iter:
                 break
 
-fc = FlickrCrawler()
+if __name__ == "__main__":
+	fc = FlickrCrawler()
+	
 
-try:
-    with open("flickr_person.txt", "w") as f:
-        for elem in fc.crawl_tag():
-            f.write(";".join(elem) + "\n")
-except:
-    print("failed")
+	parser = argparse.ArgumentParser()
+	parser.add_argument("--tag", help="tag for flickr api")
+	args = parser.parse_args()
+
+	try:
+		with open(f"flickr_{args.tag}.txt", "w") as f:
+		    for elem in fc.crawl_tag(tag=args.tag):
+		        f.write(";".join(elem) + "\n")
+	except:
+		print("failed")

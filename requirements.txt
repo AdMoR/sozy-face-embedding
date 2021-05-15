@@ -1,3 +1,4 @@
+wheel
 pyspark
 numpy
 face_recognition
@@ -8,3 +9,5 @@ uvicorn[standard]
 jinja2
 aiofiles
 python-multipart
+flickr_api
+wget
