@@ -82,34 +82,18 @@ python3 databricks_jobs/jobs/face_embedding_computer/entrypoint.py --path /Users
 ## Build index 
 
 ```
-cd ..
-docker run -it --rm -p 18889:18889 --volume=$PWD:/app --ipc=host --user="amor" sptag export PYTHONPATH=$PYTHONPATH:/app/SPTAG/Release && python3 search_service/build_index.py
+python3 search_service/build_index.py --paths export_dir/face_embedding_dump/ export_dir_2/face_embedding_dump/ export_dir_3/face_embedding_dump/
 ```
 
 ## Serve the results 
 
 ```
-Config file 
-
-[Service]
-ListenAddr=0.0.0.0
-ListenPort=18889
-ThreadNumber=2
-SocketThreadNumber=2
-
-[QueryConfig]
-DefaultMaxResultNumber=10
-DefaultSeparator=|
-
-[Index]
-List=MyIndex
-
-[Index_MyIndex]
-IndexFolder=face-embedding-computer/sptag_index
-
-cd /app && ./SPTAG/Release/server -m socket -c config.ini
+ cd search_service/ && uvicorn search_server:app --reload
 ```
 
-## Get the results
+## Display the results
 
-
+```
+<img id="example-element" src="{{element}}"
+ style="object-position: -{{bb[0]}}px -{{bb[3]}}px;object-fit: none; width: {{bb[1] - bb[3]}}px; height: {{bb[2] - bb[0]}}px">
+```

@@ -6,14 +6,18 @@
 <body>
     <h1>Upload your photo</h1>
     <form action="/search/" enctype="multipart/form-data" method="post">
-        <input name="files" type="file" multiple>
+        <input name="image" type="file">
         <input type="submit">
     </form>
 
     <div>
 
     {% if corresponding_matches %}
-        <img src="{{corresponding_matches[0]}}">
+          <div class="content">
+        {% for element, bb in corresponding_matches %}
+            <img src="{{element}}" style="object-position: -{{bb[3]}}px -{{bb[0]}}px;object-fit: none; width: {{(bb[1] - bb[3])}}px; height: {{bb[2] - bb[0]}}px">
+        {% endfor %}
+          </div>
     {%endif%}
     </div>
 </body>
