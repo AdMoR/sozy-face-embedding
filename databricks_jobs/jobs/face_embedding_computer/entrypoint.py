@@ -21,7 +21,7 @@ def create_spark_df_from_data(spark, data):
 
 class FaceEmbeddingJob(Job):
 
-    def __init__(self, path=None, out_path="./export_dir"):
+    def __init__(self, path=None, out_path="./export_dir_3"):
         self.image_path = path
         self.output_path = os.path.join(out_path, "face_embedding_dump")
         spark = SparkSession.builder. \
@@ -48,10 +48,11 @@ class FaceEmbeddingJob(Job):
         df, repartition = self.prepare_dataframe()
 
         image_df = df. \
+            select("image_path").distinct().\
             repartition(repartition, sha2("image_path", 224)).\
             rdd.\
             flatMap(lambda x: extract_face_emb_url(x.image_path)). \
-            map(lambda x: ';'.join(map(str, x))).\
+            map(lambda x: ';'.join(map(str, x))). \
             saveAsTextFile(self.output_path)
 
         self.logger.info("Sample job finished!")
@@ -59,8 +60,11 @@ class FaceEmbeddingJob(Job):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--path", help="display a square of a given number",
+    parser.add_argument("--paths", nargs='+', help="the file to parse",
+                        type=str)
+    parser.add_argument("--out_paths", nargs='+', help="the out dir",
                         type=str)
     args = parser.parse_args()
-    job = FaceEmbeddingJob(path=args.path)
-    job.launch()
+    for path, out_path in zip(args.paths, args.out_paths):
+        job = FaceEmbeddingJob(path=path, out_path=out_path)
+        job.launch()

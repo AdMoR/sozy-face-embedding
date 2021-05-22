@@ -1,10 +1,7 @@
-from urllib.request import urlopen
-from io import BytesIO
-import shutil
-import requests
 import face_recognition
 import os
 import wget
+
 
 def extract_face_emb(path):
     """
@@ -21,6 +18,10 @@ def extract_face_emb(path):
     if path:
         image = face_recognition.load_image_file(path)
         face_locations = face_recognition.api.face_locations(image)
+
+        def min_size(face_loc):
+            return (face_loc[1] - face_loc[3]) * (face_loc[2] - face_loc[0]) > 60 ** 2
+        face_locations = list(filter(min_size, face_locations))
         face_embeddings = face_recognition.face_encodings(image, known_face_locations=face_locations)
         return list(zip(
             [path] * len(face_locations),

@@ -41,23 +41,25 @@ async def vec_seach(search_q: SearchQuery):
 @app.post("/search/", status_code=200)
 async def face_search(request: Request, image: UploadFile = File(...)):
     face_embeddings = list()
-
     image = face_recognition.load_image_file(image.file)
-
-    print(image.shape)
-
+    # top, right, bottom and left coordinates for face locations
     face_locations = face_recognition.api.face_locations(image, model="cnn")
 
     if len(face_locations) == 0:
         raise HTTPException(status_code=400, detail="No face found")
 
+    def min_size(face_loc):
+        return (face_loc[1] - face_loc[3]) * (face_loc[2] - face_loc[0]) > 60 ** 2
+    face_locations = list(filter(min_size, face_locations))
+
+    if len(face_locations) == 0:
+        raise HTTPException(status_code=400, detail="Face too small")
+
     face_embeddings += face_recognition.face_encodings(image, known_face_locations=face_locations, model="large")
 
     uids = u.get_nns_by_vector(np.array(face_embeddings[0]), 10)
     returned_elements = list(map(lambda x: x.split(";"), [meta[i] for i in uids]))
-    print(returned_elements)
     urls, bbs = list(zip(*returned_elements))
-    print("==> ", bbs)
     bbs = list(map(eval, bbs))
     return templates.TemplateResponse("home.html",
                                       {"request": request,
