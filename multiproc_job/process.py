@@ -5,12 +5,14 @@ import argparse
 import os
 import face_recognition
 import time
+from multiproc_job.bing_fetcher import fetch_fn
 from urllib import request
 
 
 def get_urls(path, q):
     with open(path) as f:
-        return list(map(lambda x: q.put(x.strip().split(";")[1]), f.readlines()))
+        return list(map(lambda x: q.put(" ".join(x.strip().split(","))),
+                        f.readlines()[1:]))
 
 
 def download(url):
@@ -22,7 +24,7 @@ def download(url):
 
 
 def download_worker(q_in, q_out):
-    while not q_in.empty():
+    while True:
         url = q_in.get()
         try:
             local_path = download(url)
@@ -38,7 +40,7 @@ def extract_face_emb_url(queue_in):
     Given an image, we can find multiple faces
     Each face will generate one 128-sized embedding
 
-    :param queue: multiprocessing queue where we fetch the url to download from
+    :param queue_in: multiprocessing queue where we fetch the url to download from
     :return: List(tuple(image_path: str,
                         face_location: tuple(x, y, dx, dy),
                         face_embedding: List[float]))
@@ -83,18 +85,25 @@ if __name__ == '__main__':
     if not os.path.exists("download"):
         os.mkdir("download")
 
-    q_in = Queue()
+    q_in_queries = Queue()
+    q_in_url = Queue(maxsize=1500)
     q_out = Queue(maxsize=150)
 
-    get_urls(args.path, q_in)
+    get_urls(args.path, q_in_queries)
 
-    downloaders = [Process(target=download_worker, args=(q_in, q_out)) for _ in range(6)]
+    queriers = [Process(target=fetch_fn, args=(q_in_queries, q_in_url, i)) for i in range(5)]
+    for p in queriers:
+        p.start()
+
+    downloaders = [Process(target=download_worker, args=(q_in_url, q_out)) for _ in range(6)]
     for p in downloaders:
         p.start()
 
     gpu_p = Process(target=extract_face_emb_url, args=(q_out,))
     gpu_p.start()
 
-    for p in downloaders:
+    for p in queriers:
         p.join()
+    for p in downloaders:
+        p.kill()
     gpu_p.kill()
