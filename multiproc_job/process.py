@@ -16,7 +16,7 @@ def get_urls(path, q):
 
 
 def download(url):
-    r = request.urlopen(url, timeout=3)
+    r = request.urlopen(url, block=True, timeout=10)
     filename = os.path.join("download", detect_filename(url))
     with open(filename, "wb") as f:
         f.write(r.read())
@@ -25,7 +25,7 @@ def download(url):
 
 def download_worker(q_in, q_out):
     while True:
-        url = q_in.get()
+        url = q_in.get(block=True, timeout=60)
         try:
             local_path = download(url)
             while q_out.full():
@@ -48,7 +48,7 @@ def extract_face_emb_url(queue_in):
     with open("result.txt", "w") as out_file:
         while True:
             try:
-                msg = queue_in.get()
+                msg = queue_in.get(block=True, timeout=60)
                 path, local_path = msg.split(";")
                 image = face_recognition.load_image_file(local_path)
                 face_locations = face_recognition.api.face_locations(image, model="cnn")
@@ -69,6 +69,8 @@ def extract_face_emb_url(queue_in):
                     map(lambda x: x.tolist(), face_embeddings))
                 )
                 out_file.write(",".join(map(str, result)) + "\n")
+            except queue.Empty:
+                time.sleep(0.5)
             except Exception as e:
                 print("GPU process : ", e)
             finally:
