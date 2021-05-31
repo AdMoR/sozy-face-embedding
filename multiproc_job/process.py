@@ -1,12 +1,17 @@
 import multiprocessing as mp
 from multiprocessing import Pool, Process, Queue, Lock
+from queue import Empty
 from databricks_jobs.jobs.utils.image_downloader import detect_filename
 import argparse
 import os
+import signal
 import face_recognition
 import time
-from multiproc_job.bing_fetcher import fetch_fn
+from multiproc_job.bing_fetcher import BingUrls
 from urllib import request
+
+
+DELIMITER = "|"
 
 
 def get_urls(path, q):
@@ -15,24 +20,43 @@ def get_urls(path, q):
                         f.readlines()[1:]))
 
 
+def fetch_fn(q_in, q_out, i):
+    while not q_in.empty():
+        query = q_in.get()
+        print(f"Querier : doing {query}")
+        for elem in BingUrls(query, 50, "").run(f"all_urls_{i}.txt"):
+            while q_out.full():
+                time.sleep(0.5)
+            q_out.put(elem)
+    print("---> Querier exiting")
+
+
 def download(url):
-    r = request.urlopen(url, block=True, timeout=10)
+    headers = {'User-Agent': 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0'}
+    req = request.Request(url, None, headers=headers)
+    r = request.urlopen(req, timeout=3)
     filename = os.path.join("download", detect_filename(url))
     with open(filename, "wb") as f:
         f.write(r.read())
     return filename
 
 
-def download_worker(q_in, q_out):
-    while True:
-        url = q_in.get(block=True, timeout=60)
+def download_worker(q_in, q_out, i):
+    fail_count = 0
+    while fail_count < 100:
         try:
-            local_path = download(url)
-            while q_out.full():
-                time.sleep(0.5)
-            q_out.put(";".join([url, local_path]))
-        except Exception as e:
-            print(e)
+            url = q_in.get(block=True, timeout=60)
+            try:
+                local_path = download(url)
+                while q_out.full():
+                    time.sleep(0.5)
+                q_out.put(DELIMITER.join([url, local_path]))
+            except Exception as e:
+                print(f"Downloader : {e} from {url}")
+        except Empty:
+            print("No download job for 60 secs")
+            fail_count += 1
+    print(f"Downloader {i} exiting after {fail_count} job retrieval failures")
 
 
 def extract_face_emb_url(queue_in):
@@ -45,13 +69,16 @@ def extract_face_emb_url(queue_in):
                         face_location: tuple(x, y, dx, dy),
                         face_embedding: List[float]))
     """
+    failures = 0
+    local_path = ""
     with open("result.txt", "w") as out_file:
-        while True:
+        while failures < 1000:
             try:
-                msg = queue_in.get(block=True, timeout=60)
-                path, local_path = msg.split(";")
+                msg = queue_in.get(block=True, timeout=120)
+                path, local_path = msg.split(DELIMITER)
                 image = face_recognition.load_image_file(local_path)
-                face_locations = face_recognition.api.face_locations(image, model="cnn")
+                face_locations = face_recognition.api.face_locations(image, number_of_times_to_upsample=0,
+                                                                     model="cnn")
 
                 def min_size(face_loc):
                     return (face_loc[1] - face_loc[3]) * (face_loc[2] - face_loc[0]) > 100 ** 2
@@ -60,22 +87,27 @@ def extract_face_emb_url(queue_in):
                 if len(face_locations) == 0:
                     continue
 
-                face_embeddings = face_recognition.face_encodings(image,
-                                                                  known_face_locations=face_locations, model="large")
+                face_embeddings = face_recognition.face_encodings(
+                    image,
+                    known_face_locations=face_locations,
+                    model="large"
+                )
 
                 result = list(zip(
                     [path] * len(face_locations),
                     face_locations,
                     map(lambda x: x.tolist(), face_embeddings))
                 )
-                out_file.write(",".join(map(str, result)) + "\n")
-            except queue.Empty:
-                time.sleep(0.5)
+                out_file.write("\n".join(map(lambda x: DELIMITER.join(map(str, x)), result)) + "\n")
+            except Empty:
+                print("No gpu job for 120 secs")
+                failures += 1
             except Exception as e:
                 print("GPU process : ", e)
             finally:
                 if local_path != "download.wget" and os.path.exists(local_path):
                     os.remove(local_path)
+    print("Exiting Gpu processing")
 
 
 if __name__ == '__main__':
@@ -93,19 +125,20 @@ if __name__ == '__main__':
 
     get_urls(args.path, q_in_queries)
 
-    queriers = [Process(target=fetch_fn, args=(q_in_queries, q_in_url, i)) for i in range(5)]
+    queriers = [Process(target=fetch_fn, args=(q_in_queries, q_in_url, i)) for i in range(4)]
     for p in queriers:
         p.start()
 
-    downloaders = [Process(target=download_worker, args=(q_in_url, q_out)) for _ in range(6)]
+    downloaders = [Process(target=download_worker, args=(q_in_url, q_out, i)) for i in range(4)]
     for p in downloaders:
         p.start()
 
     gpu_p = Process(target=extract_face_emb_url, args=(q_out,))
     gpu_p.start()
 
+    gpu_p.join()
+    print("Gpu process failed, killing all others processes")
     for p in queriers:
         p.join()
     for p in downloaders:
-        p.kill()
-    gpu_p.kill()
+        p.join()

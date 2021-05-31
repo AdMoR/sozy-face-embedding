@@ -38,11 +38,3 @@ class BingUrls(NamedTuple):
 
         time.sleep(1)
 
-
-def fetch_fn(q_in, q_out, i):
-    while not q_in.empty():
-        query = q_in.get()
-        for elem in BingUrls(query, 50, "").run(f"all_urls_{i}.txt"):
-            while q_out.full():
-                time.sleep(0.5)
-            q_out.put(elem)
