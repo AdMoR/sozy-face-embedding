@@ -71,8 +71,8 @@ def extract_face_emb_url(queue_in):
     """
     failures = 0
     local_path = ""
-    with open("result.txt", "w") as out_file:
-        while failures < 1000:
+    with open("result.txt", "a") as out_file:
+        while failures < 1200:
             try:
                 msg = queue_in.get(block=True, timeout=120)
                 path, local_path = msg.split(DELIMITER)
@@ -107,7 +107,7 @@ def extract_face_emb_url(queue_in):
             finally:
                 if local_path != "download.wget" and os.path.exists(local_path):
                     os.remove(local_path)
-    print("Exiting Gpu processing")
+    print(f"Exiting Gpu processing with {failures}")
 
 
 if __name__ == '__main__':
@@ -133,11 +133,28 @@ if __name__ == '__main__':
     for p in downloaders:
         p.start()
 
-    gpu_p = Process(target=extract_face_emb_url, args=(q_out,))
-    gpu_p.start()
+    def spawn_gpu_processor():
+        gpu_proc = Process(target=extract_face_emb_url, args=(q_out,))
+        gpu_proc.start()
+        return gpu_proc
 
+    gpu_p = spawn_gpu_processor()
+
+    while any(p.is_alive() for p in queriers):
+        time.sleep(60)
+        if gpu_p.exitcode is None and not gpu_p.is_alive():
+            print("Restarting ded process")
+            gpu_p = spawn_gpu_processor()
+        elif not gpu_p.is_alive() and gpu_p.exitcode < 0:
+            print("Restarting faulty process")
+            gpu_p = spawn_gpu_processor()
+        else:
+            print("Gpu process is ok")
+
+    print("Waiting for gpu to join")
     gpu_p.join()
-    print("Gpu process failed, killing all others processes")
+
+    print("Waiting for other processes to join")
     for p in queriers:
         p.join()
     for p in downloaders:

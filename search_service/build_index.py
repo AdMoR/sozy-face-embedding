@@ -12,8 +12,8 @@ def load_vectors_and_metadata(doc_path):
 		lines = f.readlines()
 
 	def extract_fn(x):
-		fields = x.split(";")
-		return ";".join(fields[0:2]), fields[2]
+		fields = x.split("|")
+		return "|".join(fields[0:2]), fields[2]
 
 	metadata, embeddings = zip(*map(extract_fn, lines))
 	return list(metadata), \

@@ -58,8 +58,10 @@ async def face_search(request: Request, image: UploadFile = File(...)):
     face_embeddings += face_recognition.face_encodings(image, known_face_locations=face_locations, model="large")
 
     uids = u.get_nns_by_vector(np.array(face_embeddings[0]), 10)
-    returned_elements = list(map(lambda x: x.split(";"), [meta[i] for i in uids]))
+    print([meta[i] for i in uids])
+    returned_elements = list(map(lambda x: x.split("|"), [meta[i] for i in uids]))
     urls, bbs = list(zip(*returned_elements))
+    print(urls, bbs)
     bbs = list(map(eval, bbs))
     return templates.TemplateResponse("home.html",
                                       {"request": request,
